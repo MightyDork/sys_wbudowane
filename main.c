@@ -100,17 +100,21 @@ void podprogram8(void)
     return;
 }
 
-void podprogram9(uint16_t a)
+uint16_t podprogram9(
+uint16_t input, uint16_t m, uint16_t a, uint16_t c)
 {
     // trzeba napisac wlasny generator liczb losowych
-    // unicode 1F635 200D 1F4AB
     // lcg ??
     // 2 diody z lewej nie swiecic ale te bity moga byc w kodzie
     
-    uint16_t ret = a;
+    uint16_t helper3 = ((input * a) + c) % m;
+    LATA = helper3;
     
-    return;
-}
+    __delay32(2000000);
+    
+    return helper3;
+} 
+ 
 
 int main(void) {
 T1CON = 0x8010; // rejestr od zegara
@@ -124,6 +128,13 @@ uint16_t liczba1 = 0;
 uint16_t liczba2 = 255;
 
 uint16_t liczba4 = 99;
+
+int seed1 = 5; // Seed value 
+int m1 = 7; // Modulus parameter 
+int a1 = 3; // Multiplier term 
+int c1 = 3; // Increment term 
+uint16_t helper4; // przechowuje wygenerowany ostatni lcg
+helper4 = podprogram9(seed1,m1,a1,c1);
 
 while(1) {
    
@@ -173,7 +184,7 @@ while(1) {
             podprogram8();
             break;
         case 9:
-            podprogram9(1);
+            helper4 = podprogram9(helper4,m1,a1,c1);
             break;
     }
 }
@@ -184,14 +195,12 @@ return 0;
 
 // input to tris = 1
 
-// logika guzików: kiedy sprawdzasz czy przycisk wci?ni?ty to porównaj jego warto?? w tym momencie
-
-// kiedy guzik to zeruj liczbe
+// logika guzików: kiedy sprawdzasz czy przycisk wcisniety to porównaj jego wartosc w tym momencie
 
 // pin od przycisku normalnie ma 1, jak naciskamy to mamy 0
 
 // de-bouncing trzeba zrobi? na przycisku, jak pierwszy raz wykryje 0 to przez jaki? czas niech nie s?ucha
 
-// po przycisku reset zmienne liczby
-
 // w generatorze losowym mozna uzyc and zeby zamaskowac 2 najstarsze bity
+
+// kiedy guzik to zeruj liczbe uzywana w podprogramie
