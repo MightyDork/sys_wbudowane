@@ -1,3 +1,5 @@
+// Ewelina Dolega 164461
+
 // PIC24FJ128GA010 Configuration Bit Settings
 // For more on Configuration Bits, consult your device data sheet
 // CONFIG2
@@ -38,7 +40,7 @@ void podprogram1(uint16_t a)
 {
     // tylko wy?wietl
      LATA = a;
-    __delay32(1500000);
+    __delay32(2000000);
     return;
 }
 
@@ -46,49 +48,35 @@ void podprogram3(uint16_t a)
 {
     uint16_t gray = a ^ (a >> 1);
     LATA = gray;
-    __delay32(1500000);
+    __delay32(2000000);
     return;
 }
 
-void podprogram5(void)
+void podprogram5(uint16_t a)
 {
-    // 2x4 bitowy BCD
-    return;
+    uint16_t dziesiatki = a / 10;
+    uint16_t jednosci = a % 10;
+    
+    uint16_t bcd = (dziesiatki << 4) | jednosci;
+    
+    LATA = bcd; 
+    __delay32(2000000);
 }
 
 void podprogram7(void)
 {
-    LATA = 0x07;
-    __delay32(1500000);
-    LATA = 0x0E;
-    __delay32(1500000);
-    LATA = 0x1C; 
-    __delay32(1500000);
-    LATA = 0x38; 
-    __delay32(1500000);
-    LATA = 0x70; 
-    __delay32(1500000);
-    LATA = 0xE0; 
-    __delay32(1500000);
-    LATA = 0x70; 
-    __delay32(1500000);   
-    LATA = 0x38;
-    __delay32(1500000);  
-    LATA = 0x1C; 
-    __delay32(1500000);   
-    LATA = 0x0E;
-    __delay32(1500000);   
-    LATA = 0x07; 
-    return;
-}
-
-void p7(void)
-{
     uint16_t helper = 0b111;
     LATA = helper;
     __delay32(1500000); 
-    for(int i = 0; int < 6; i++)
+    for(int i = 0; i < 5; i++)
     {
+        helper = helper << 1;
+        LATA = helper;
+        __delay32(1500000); 
+    }
+    for(int i = 0; i < 4; i++)
+    {
+        helper = helper >> 1;
         LATA = helper;
         __delay32(1500000); 
     }
@@ -117,19 +105,19 @@ void podprogram9(uint16_t a)
     // trzeba napisac wlasny generator liczb losowych
     // unicode 1F635 200D 1F4AB
     // lcg ??
+    // 2 diody z lewej nie swiecic ale te bity moga byc w kodzie
     
+    uint16_t ret = a;
     
-    return a;
+    return;
 }
 
 int main(void) {
-T1CON = 0x8010;
-// Port A access
+T1CON = 0x8010; // rejestr od zegara
 AD1PCFG = 0xFFFF; // set to digital I/O (not analog)
 TRISA = 0x0000; // set all port bits to be output
 
-
-uint16_t program = 8;
+uint16_t program = 6;
 
 uint16_t liczba1 = 0;
 
@@ -158,10 +146,23 @@ while(1) {
             liczba2--;
             break;
         case 5:
+            if (liczba1 > 99) 
+            {
+                liczba1 = 0;
+            }
             podprogram5(liczba1);
             liczba1++;
             break;
         case 6:
+            if (liczba4 > 99) 
+            {
+                liczba4 = 0;
+            }
+            if (liczba4 <= 0) 
+            {
+                podprogram5(0);
+                liczba4 = 99;
+            }
             podprogram5(liczba4);
             liczba4--;
             break;
@@ -172,21 +173,25 @@ while(1) {
             podprogram8();
             break;
         case 9:
-            podprogram9();
+            podprogram9(1);
             break;
     }
 }
 return 0;
 }
 
-// RD6 RD13 to rejestry do pinów
+// RD6 RD13 to rejestry do pinÃ³w
 
 // input to tris = 1
 
-// logika guzików: kiedy sprawdzasz czy przycisk wci?ni?ty to porównaj jego warto?? w tym momencie
+// logika guzikÃ³w: kiedy sprawdzasz czy przycisk wci?ni?ty to porÃ³wnaj jego warto?? w tym momencie
 
 // kiedy guzik to zeruj liczbe
 
 // pin od przycisku normalnie ma 1, jak naciskamy to mamy 0
 
 // de-bouncing trzeba zrobi? na przycisku, jak pierwszy raz wykryje 0 to przez jaki? czas niech nie s?ucha
+
+// po przycisku reset zmienne liczby
+
+// w generatorze losowym mozna uzyc and zeby zamaskowac 2 najstarsze bity
