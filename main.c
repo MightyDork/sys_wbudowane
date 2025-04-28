@@ -108,7 +108,9 @@ uint16_t input, uint16_t m, uint16_t a, uint16_t c)
     // 2 diody z lewej nie swiecic ale te bity moga byc w kodzie
     
     uint16_t helper3 = ((input * a) + c) % m;
-    LATA = helper3;
+    uint16_t helper5 = helper3 % 100000;
+    helper5 = helper5 >> 2;
+    LATA = helper5;
     
     __delay32(2000000);
     
