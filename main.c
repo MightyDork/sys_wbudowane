@@ -24,10 +24,10 @@
 #include <math.h>
 
 // Global variables
-volatile uint16_t program = 1;        // Current program (1-9)
+volatile uint16_t program = 1;        // wybrany program
 volatile uint16_t timer1_counter = 0; // Timer1 interrupt counter
 volatile uint8_t timer1_flag = 0;     // Timer1 period flag
-volatile uint8_t debounce_counter = 0; // Button debounce counter
+volatile uint8_t debounce_counter = 0; // debouncing counter
 
 // Timer1 Interrupt Service Routine
 void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
@@ -79,7 +79,7 @@ void configure_CN(void) {
     IFS1bits.CNIF = 0;     // Clear CN interrupt flag
 }
 
-// Wait for specified number of timer periods (1 period ≈ 1s)
+// pomocnik do timer'a 1 period == 1 sekunda
 void timer_delay(uint16_t periods) {
     while(periods > 0) {
         timer1_flag = 0;
