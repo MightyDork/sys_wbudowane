@@ -23,24 +23,77 @@
 #include <libpic30.h>
 #include <math.h>
 
-void configure_CN(void)
-{
-CNEN1bits.CN3IE = 1; // Enable CN3 pin for interrupt detection
-IEC1bits.CNIE = 1; // Enable CN interrupts
-IFS1bits.CNIF = 0; // Reset CN interrupt
+// Global variables
+volatile uint16_t program = 1;        // Current program (1-9)
+volatile uint16_t timer1_counter = 0; // Timer1 interrupt counter
+volatile uint8_t timer1_flag = 0;     // Timer1 period flag
+volatile uint8_t debounce_counter = 0; // Button debounce counter
+
+// Timer1 Interrupt Service Routine
+void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
+    timer1_counter++;
+    
+    // Update debounce counter if active
+    if(debounce_counter > 0) debounce_counter--;
+    
+    // Set flag every 2000 counts (~1s at 8MHz with 1:8 prescaler)
+    if(timer1_counter >= 2000) {
+        timer1_flag = 1;
+        timer1_counter = 0;
+    }
+    
+    IFS0bits.T1IF = 0;  // Clear Timer1 interrupt flag
 }
-void __attribute__ ((interrupt)) _CNInterrupt(void)
-{
-// Insert ISR code here
-// co ma sie dziac, zmiana programu, sprawdz ktory przycisk wcisniety i if zeby w przod lub tyl
-IFS1bits.CNIF = 0; // Clear CN interrupt to make it aviable to happen again
+
+// Change Notification Interrupt for buttons
+void __attribute__((interrupt, auto_psv)) _CNInterrupt(void) {
+    if (debounce_counter == 0) {
+        if (PORTDbits.RD6 == 0) {      // Next program button
+            program = (program % 9) + 1; // Wrap around from 9 to 1
+            debounce_counter = 20;      // ~20ms debounce
+        } 
+        else if (PORTDbits.RD13 == 0) { // Previous program button
+            program = (program == 1) ? 9 : program - 1;
+            debounce_counter = 20;
+        }
+    }
+    IFS1bits.CNIF = 0;  // Clear CN interrupt flag
 }
+
+void configure_Timer1(void) {
+    T1CON = 0x8010;     // rejestr od zegara 1:8 prescaler
+    PR1 = 499;          // Period register for 1ms interrupt at 8MHz
+    IFS0bits.T1IF = 0;  // Clear Timer1 interrupt flag
+    IEC0bits.T1IE = 1;  // Enable Timer1 interrupt
+    IPC0bits.T1IP = 1;  // Set Timer1 interrupt priority
+}
+
+void configure_CN(void) {
+    CNEN1bits.CN6IE = 1;   // RD6 (next program)
+    CNEN2bits.CN13IE = 1;  // RD13 (previous program)
+    TRISDbits.TRISD6 = 1;  // RD6 as input
+    TRISDbits.TRISD13 = 1; // RD13 as input
+    CNPU1bits.CN6PUE = 1;  // Enable pull-up on RD6
+    CNPU2bits.CN13PUE = 1; // Enable pull-up on RD13
+    IEC1bits.CNIE = 1;     // Enable CN interrupts
+    IFS1bits.CNIF = 0;     // Clear CN interrupt flag
+}
+
+// Wait for specified number of timer periods (1 period ≈ 1s)
+void timer_delay(uint16_t periods) {
+    while(periods > 0) {
+        timer1_flag = 0;
+        while(!timer1_flag); // Wait for timer period
+        periods--;
+    }
+}
+
 
 void podprogram1(uint16_t a)
 {
-    // tylko wy?wietl
-     LATA = a;
-    __delay32(2000000);
+    // tylko wyswietl
+    LATA = a;
+    timer_delay(2);
     return;
 }
 
@@ -48,7 +101,7 @@ void podprogram3(uint16_t a)
 {
     uint16_t gray = a ^ (a >> 1);
     LATA = gray;
-    __delay32(2000000);
+    timer_delay(2);
     return;
 }
 
@@ -60,25 +113,25 @@ void podprogram5(uint16_t a)
     uint16_t bcd = (dziesiatki << 4) | jednosci;
     
     LATA = bcd; 
-    __delay32(2000000);
+    timer_delay(2);
 }
 
 void podprogram7(void)
 {
     uint16_t helper = 0b111;
     LATA = helper;
-    __delay32(1500000); 
+    timer_delay(2);
     for(int i = 0; i < 5; i++)
     {
         helper = helper << 1;
         LATA = helper;
-        __delay32(1500000); 
+        timer_delay(2);
     }
     for(int i = 0; i < 4; i++)
     {
         helper = helper >> 1;
         LATA = helper;
-        __delay32(1500000); 
+        timer_delay(2);
     }
     return;
 }
@@ -94,7 +147,7 @@ void podprogram8(void)
             // j = latajace
             uint16_t helper1 = pow(2, j-1);
             LATA = helper1 + helper2;
-            __delay32(1500000);
+            timer_delay(2);
         }
     }
     return;
@@ -112,18 +165,15 @@ uint16_t input, uint16_t m, uint16_t a, uint16_t c)
     helper5 = helper5 >> 2;
     LATA = helper5;
     
-    __delay32(2000000);
+    timer_delay(2);
     
     return helper3;
 } 
  
 
 int main(void) {
-T1CON = 0x8010; // rejestr od zegara
 AD1PCFG = 0xFFFF; // set to digital I/O (not analog)
 TRISA = 0x0000; // set all port bits to be output
-
-uint16_t program = 6;
 
 uint16_t liczba1 = 0;
 
@@ -138,7 +188,28 @@ int c1 = 3; // Increment term
 uint16_t helper4; // przechowuje wygenerowany ostatni lcg
 helper4 = podprogram9(seed1,m1,a1,c1);
 
+configure_Timer1();
+
+// Configure buttons and interrupts
+configure_CN();
+    
+// Enable interrupts globally
+__builtin_enable_interrupts();
+    
 while(1) {
+
+    // debounce counter
+    if (debounce_counter > 0) {
+        debounce_counter--;
+    }
+        
+    // Reset counters when program changes
+    if (button_pressed) {
+        liczba1 = 0;
+        liczba2 = 255;
+        liczba4 = 99;
+        button_pressed = 0;
+    }
    
     switch (program)
     {
