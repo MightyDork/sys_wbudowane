@@ -23,7 +23,7 @@
 #include <libpic30.h>
 #include <math.h>
 
-uint16_t program = 9;
+uint16_t program = 8;
 
 void configure_CN(void)
 {
@@ -68,43 +68,6 @@ void podprogram5(uint16_t a)
     __delay32(2000000);
 }
 
-void podprogram7(void) // problem - kiedy to sie dzieje to nie przycisk
-{
-    uint16_t helper = 0b111;
-    LATA = helper;
-    __delay32(1500000); 
-    for(int i = 0; i < 5; i++)
-    {
-        helper = helper << 1;
-        LATA = helper;
-        __delay32(1500000);
-    }
-    for(int i = 0; i < 4; i++)
-    {
-        helper = helper >> 1;
-        LATA = helper;
-        __delay32(1500000); 
-    }
-    return;
-}
-
-void podprogram8(void) // problem - kiedy to sie dzieje to nie przycisk
-{   uint16_t helper2 = 0;
-    for(int i = 0; i<9;i++)
-    {
-        helper2 = helper2 + pow(2, 8-i);
-        for(int j = 1; j<9-i;j++)
-        {
-            // i = duze zapelnione
-            // j = latajace
-            uint16_t helper1 = pow(2, j-1);
-            LATA = helper1 + helper2;
-            __delay32(1500000);
-        }
-    }
-    return;
-}
-
 uint16_t podprogram9(
 uint16_t input, uint16_t m, uint16_t a, uint16_t c)
 {
@@ -112,7 +75,10 @@ uint16_t input, uint16_t m, uint16_t a, uint16_t c)
     // lcg ??
     // 2 diody z lewej nie swiecic ale te bity moga byc w kodzie
     
-    uint16_t helper3 = ((input * a) + c) % m;
+    uint16_t helper3 = input * a;
+    
+    helper3 += c;
+    helper3 = helper3 % m;
     /*
     if(helper3 > 64){
         uint16_t helper5 = helper3 % 100000;
@@ -144,12 +110,18 @@ uint16_t liczba2 = 255;
 
 uint16_t liczba4 = 99;
 
-int seed1 = 63; // Seed value 
-int m1 = 62; // Modulus parameter 
-int a1 = 61; // Multiplier term 
-int c1 = 60; // Increment term 
+int seed1 = 33; // Seed value 
+int m1 = 63; // Modulus parameter 
+int a1 = 29; // Multiplier term 
+int c1 = 13; // Increment term 
 uint16_t helper4; // przechowuje wygenerowany ostatni lcg
 helper4 = podprogram9(seed1,m1,a1,c1);
+
+uint16_t wonsz_kierunek = 1;
+uint16_t wonsz = 0b111;
+
+uint16_t kolejka = 1;
+uint16_t kolejka_licznik = 0;
 
 while(1) {
     
@@ -167,11 +139,15 @@ while(1) {
 
         liczba4 = 99;
 
-        seed1 = 63; // Seed value 
-        m1 = 62; // Modulus parameter 
-        a1 = 61; // Multiplier term 
-        c1 = 60; // Increment term 
+        seed1 = 33; // Seed value 
+        m1 = 63; // Modulus parameter 
+        a1 = 29; // Multiplier term 
+        c1 = 13; // Increment term 
         helper4 = podprogram9(seed1,m1,a1,c1);
+        
+        wonsz = 0b111;
+        
+        kolejka = 1;
     }
         
     if(PORTDbits.RD13 == 0)
@@ -187,11 +163,15 @@ while(1) {
 
         liczba4 = 99;
 
-        seed1 = 63; // Seed value 
-        m1 = 62; // Modulus parameter 
-        a1 = 61; // Multiplier term 
-        c1 = 60; // Increment term 
+        seed1 = 33; // Seed value 
+        m1 = 63; // Modulus parameter 
+        a1 = 29; // Multiplier term 
+        c1 = 13; // Increment term 
         helper4 = podprogram9(seed1,m1,a1,c1);
+        
+        wonsz = 0b111;
+        
+        kolejka = 1;
     }
    
     switch (program)
@@ -234,25 +214,50 @@ while(1) {
             liczba4--;
             break;
         case 7:
-            podprogram7();
+            LATA = wonsz;
+            if(wonsz == 0b111)
+            {
+                wonsz_kierunek = 1;
+            }
+            if(wonsz == 0b11100000)
+            {
+                wonsz_kierunek = 2;
+            }
+            if(wonsz_kierunek == 1)
+            {
+                wonsz = wonsz << 1;
+            }
+            if(wonsz_kierunek == 2)
+            {
+                wonsz = wonsz >> 1;
+            }
+            __delay32(1500000);
             break;
         case 8:
-            podprogram8();
+            if (kolejka > 255)
+            {
+                kolejka = 1;
+            }
+            LATA = kolejka;
+            kolejka_licznik++;
+            kolejka = kolejka + pow(2, kolejka_licznik);
+            __delay32(1500000);
             break;
         case 9:
             helper4 = podprogram9(helper4,m1,a1,c1);
             break;
     }
 }
+
 return 0;
 }
 
 
-// RD6 RD13 to rejestry do pinów
+// RD6 RD13 to rejestry do pinÃ³w
 
 // input to tris = 1
 
-// logika guzików: kiedy sprawdzasz czy przycisk wcisniety to porównaj jego wartosc w tym momencie
+// logika guzikÃ³w: kiedy sprawdzasz czy przycisk wcisniety to porÃ³wnaj jego wartosc w tym momencie
 
 // pin od przycisku normalnie ma 1, jak naciskamy to mamy 0
 
