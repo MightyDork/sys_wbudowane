@@ -23,22 +23,104 @@
 #include <libpic30.h>
 #include <math.h>
 
-uint16_t program = 8;
+uint16_t program = 9;
+uint16_t liczba1 = 0;
+
+uint16_t liczba2 = 255;
+
+uint16_t liczba4 = 99;
+
+int seed1 = 33; // Seed value 
+int m1 = 63; // Modulus parameter 
+int a1 = 29; // Multiplier term 
+int c1 = 13; // Increment term 
+uint16_t helper4; // przechowuje wygenerowany ostatni lcg
+
+
+uint16_t wonsz_kierunek = 1;
+uint16_t wonsz = 0b111;
+
+uint16_t kolejka = 1;
+uint16_t kolejka_licznik = 0;
+
+uint16_t podprogram9(
+uint16_t input, uint16_t m, uint16_t a, uint16_t c)
+{
+    // trzeba napisac wlasny generator liczb losowych
+    // lcg ??
+    // 2 diody z lewej nie swiecic ale te bity moga byc w kodzie
+    
+    uint16_t helper3 = input * a;
+    
+    helper3 += c;
+    helper3 = helper3 % m;
+    /*
+    if(helper3 > 64){
+        uint16_t helper5 = helper3 % 100000;
+        helper5 = helper5 >> 2;
+        LATA = helper5;
+    }
+    else
+    {
+        LATA = helper3;
+    }
+    */
+    LATA = helper3;
+    __delay32(2000000);
+    
+    return helper3;
+}
 
 void configure_CN(void)
 {
-CNEN1bits.CN3IE = 1; // Enable CN3 pin for interrupt detection
-IEC1bits.CNIE = 1; // Enable CN interrupts
-IFS1bits.CNIF = 0; // Reset CN interrupt
-TRISDbits.TRISD6 = 1;
-TRISDbits.TRISD13 = 1;
+    CNEN1bits.CN15IE = 1;  // RD6
+    CNEN2bits.CN19IE = 1;  // RD13
+    CNPU1bits.CN15PUE = 1; // pull-up dla RD6
+    CNPU2bits.CN19PUE = 1; // pull-up dla RD13
+
+    IFS1bits.CNIF = 0;
+    IEC1bits.CNIE = 1;
+    IPC4bits.CNIP = 5;
 }
 
-void __attribute__ ((interrupt)) _CNInterrupt(void)
+void __attribute__ ((__interrupt__)) _CNInterrupt(void)
 {
-// Insert ISR code here
-// co ma sie dziac, zmiana programu, sprawdz ktory przycisk wcisniety i if zeby w przod lub tyl
-IFS1bits.CNIF = 0; // Clear CN interrupt to make it aviable to happen again
+    if(PORTDbits.RD6 == 0)
+    {
+        program++;
+    }
+    if(PORTDbits.RD13 == 0)
+    {
+        program--;
+    }
+    if(program > 9)
+    {
+        program = 1;
+    }
+    
+    if(program < 1)
+    {
+        program = 9;
+    }
+          
+            
+    liczba1 = 0;
+
+    liczba2 = 255;
+
+    liczba4 = 99;
+
+    seed1 = 33; // Seed value 
+    m1 = 63; // Modulus parameter 
+    a1 = 29; // Multiplier term 
+    c1 = 13; // Increment term 
+    helper4 = podprogram9(seed1,m1,a1,c1);
+        
+    wonsz = 0b111;
+        
+    kolejka = 1;
+    kolejka_licznik = 0;
+    IFS1bits.CNIF = 0; // Clear CN interrupt
 }
 
 void podprogram1(uint16_t a)
@@ -68,35 +150,6 @@ void podprogram5(uint16_t a)
     __delay32(2000000);
 }
 
-uint16_t podprogram9(
-uint16_t input, uint16_t m, uint16_t a, uint16_t c)
-{
-    // trzeba napisac wlasny generator liczb losowych
-    // lcg ??
-    // 2 diody z lewej nie swiecic ale te bity moga byc w kodzie
-    
-    uint16_t helper3 = input * a;
-    
-    helper3 += c;
-    helper3 = helper3 % m;
-    /*
-    if(helper3 > 64){
-        uint16_t helper5 = helper3 % 100000;
-        helper5 = helper5 >> 2;
-        LATA = helper5;
-    }
-    else
-    {
-        LATA = helper3;
-    }
-    */
-    LATA = helper3;
-    __delay32(2000000);
-    
-    return helper3;
-}
- 
-
 int main(void) {
 T1CON = 0x8010; // rejestr od zegara
 AD1PCFG = 0xFFFF; // set to digital I/O (not analog)
@@ -104,24 +157,7 @@ TRISA = 0x0000; // set all port bits to be output
 
 configure_CN();
 
-uint16_t liczba1 = 0;
-
-uint16_t liczba2 = 255;
-
-uint16_t liczba4 = 99;
-
-int seed1 = 33; // Seed value 
-int m1 = 63; // Modulus parameter 
-int a1 = 29; // Multiplier term 
-int c1 = 13; // Increment term 
-uint16_t helper4; // przechowuje wygenerowany ostatni lcg
 helper4 = podprogram9(seed1,m1,a1,c1);
-
-uint16_t wonsz_kierunek = 1;
-uint16_t wonsz = 0b111;
-
-uint16_t kolejka = 1;
-uint16_t kolejka_licznik = 0;
 
 while(1) {
     
@@ -131,6 +167,10 @@ while(1) {
         if(program > 9)
         {
             program = 1;
+        }
+        if(program < 1)
+        {
+            program = 9;
         }
             
         liczba1 = 0;
@@ -148,6 +188,7 @@ while(1) {
         wonsz = 0b111;
         
         kolejka = 1;
+        kolejka_licznik = 0;
     }
         
     if(PORTDbits.RD13 == 0)
@@ -157,6 +198,11 @@ while(1) {
         {
             program = 8;
         }
+        if(program < 1)
+        {
+            program = 9;
+        }
+           
         liczba1 = 0;
 
         liczba2 = 255;
@@ -172,6 +218,7 @@ while(1) {
         wonsz = 0b111;
         
         kolejka = 1;
+        kolejka_licznik = 0;
     }
    
     switch (program)
@@ -234,6 +281,7 @@ while(1) {
             __delay32(1500000);
             break;
         case 8:
+            // mocno nie działa
             if (kolejka > 255)
             {
                 kolejka = 1;
@@ -257,11 +305,11 @@ return 0;
 
 // input to tris = 1
 
-// logika guzików: kiedy sprawdzasz czy przycisk wcisniety to porównaj jego wartosc w tym momencie
+// logika guzikuw: kiedy sprawdzasz czy przycisk wcisniety to porównaj jego wartosc w tym momencie
 
 // pin od przycisku normalnie ma 1, jak naciskamy to mamy 0
 
-// de-bouncing trzeba zrobi? na przycisku, jak pierwszy raz wykryje 0 to przez jaki? czas niech nie s?ucha
+// de-bouncing trzeba zrobic na przycisku, jak pierwszy raz wykryje 0 to przez jakis czas niech nie slucha
 
 // w generatorze losowym mozna uzyc and zeby zamaskowac 2 najstarsze bity
 
