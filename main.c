@@ -23,7 +23,7 @@
 #include <libpic30.h>
 #include <math.h>
 
-uint16_t program = 9;
+uint16_t program = 8;
 uint16_t liczba1 = 0;
 
 uint16_t liczba2 = 255;
@@ -40,9 +40,11 @@ uint16_t helper4; // przechowuje wygenerowany ostatni lcg
 uint16_t wonsz_kierunek = 1;
 uint16_t wonsz = 0b111;
 
-uint16_t kolejka = 1;
-uint16_t kolejka_licznik = 0;
+uint16_t helper2 = 0;
+uint16_t helper6 = 0;
+uint16_t helper7 = 1;
 
+// w kodzie wyzej od innych bo interrupty korzystaja z tego zeby reset value do startowej
 uint16_t podprogram9(
 uint16_t input, uint16_t m, uint16_t a, uint16_t c)
 {
@@ -54,17 +56,6 @@ uint16_t input, uint16_t m, uint16_t a, uint16_t c)
     
     helper3 += c;
     helper3 = helper3 % m;
-    /*
-    if(helper3 > 64){
-        uint16_t helper5 = helper3 % 100000;
-        helper5 = helper5 >> 2;
-        LATA = helper5;
-    }
-    else
-    {
-        LATA = helper3;
-    }
-    */
     LATA = helper3;
     __delay32(2000000);
     
@@ -83,8 +74,10 @@ void configure_CN(void)
     IPC4bits.CNIP = 5;
 }
 
-void __attribute__ ((__interrupt__)) _CNInterrupt(void)
+void __attribute__ ((interrupt)) _CNInterrupt(void)
 {
+    LATA = 0;
+    
     if(PORTDbits.RD6 == 0)
     {
         program++;
@@ -118,14 +111,18 @@ void __attribute__ ((__interrupt__)) _CNInterrupt(void)
         
     wonsz = 0b111;
         
-    kolejka = 1;
-    kolejka_licznik = 0;
+    helper2 = 0;
+    helper6 = 0;
+    helper7 = 1;
+    
+    LATA = 0;
+    
     IFS1bits.CNIF = 0; // Clear CN interrupt
 }
 
 void podprogram1(uint16_t a)
 {
-    // tylko wy?wietl
+    // tylko wyswietl
      LATA = a;
     __delay32(2000000);
     return;
@@ -150,6 +147,7 @@ void podprogram5(uint16_t a)
     __delay32(2000000);
 }
 
+
 int main(void) {
 T1CON = 0x8010; // rejestr od zegara
 AD1PCFG = 0xFFFF; // set to digital I/O (not analog)
@@ -157,70 +155,12 @@ TRISA = 0x0000; // set all port bits to be output
 
 configure_CN();
 
+LATA = 0;
+
 helper4 = podprogram9(seed1,m1,a1,c1);
 
 while(1) {
     
-    if(PORTDbits.RD6 == 0)
-    {
-        program++;
-        if(program > 9)
-        {
-            program = 1;
-        }
-        if(program < 1)
-        {
-            program = 9;
-        }
-            
-        liczba1 = 0;
-
-        liczba2 = 255;
-
-        liczba4 = 99;
-
-        seed1 = 33; // Seed value 
-        m1 = 63; // Modulus parameter 
-        a1 = 29; // Multiplier term 
-        c1 = 13; // Increment term 
-        helper4 = podprogram9(seed1,m1,a1,c1);
-        
-        wonsz = 0b111;
-        
-        kolejka = 1;
-        kolejka_licznik = 0;
-    }
-        
-    if(PORTDbits.RD13 == 0)
-    {
-        program--;
-        if(program < 1)
-        {
-            program = 8;
-        }
-        if(program < 1)
-        {
-            program = 9;
-        }
-           
-        liczba1 = 0;
-
-        liczba2 = 255;
-
-        liczba4 = 99;
-
-        seed1 = 33; // Seed value 
-        m1 = 63; // Modulus parameter 
-        a1 = 29; // Multiplier term 
-        c1 = 13; // Increment term 
-        helper4 = podprogram9(seed1,m1,a1,c1);
-        
-        wonsz = 0b111;
-        
-        kolejka = 1;
-        kolejka_licznik = 0;
-    }
-   
     switch (program)
     {
         case 1:
@@ -244,6 +184,9 @@ while(1) {
             {
                 liczba1 = 0;
             }
+            if(program != 5)
+                break;
+            // zeby nie czekal na delay w srodku tego w razie czego
             podprogram5(liczba1);
             liczba1++;
             break;
@@ -257,6 +200,9 @@ while(1) {
                 podprogram5(0);
                 liczba4 = 99;
             }
+            if(program != 6)
+                break;
+            // zeby nie czekal na delay w srodku tego w razie czego
             podprogram5(liczba4);
             liczba4--;
             break;
@@ -278,18 +224,33 @@ while(1) {
             {
                 wonsz = wonsz >> 1;
             }
+            if(program != 7)
+                break;
+            // zeby nie czekal na delay w razie czego
             __delay32(1500000);
             break;
         case 8:
-            // mocno nie działa
-            if (kolejka > 255)
+            helper2 = 0;
+            while(helper6<9)
             {
-                kolejka = 1;
+                if(program != 8)
+                    break;
+                helper2 = helper2 + pow(2, 8-helper6);
+                while(helper7<9-helper6)
+                {
+                    if(program != 8)
+                        break;
+                    // helper6 = duze zapelnione
+                    // helper7 = latajace
+                    uint16_t helper1 = pow(2, helper7-1);
+                    LATA = helper1 + helper2;
+                    helper7++;
+                    __delay32(1500000);
+                }
+                helper7 = 1;
+                helper6++;
             }
-            LATA = kolejka;
-            kolejka_licznik++;
-            kolejka = kolejka + pow(2, kolejka_licznik);
-            __delay32(1500000);
+            helper6 = 0;
             break;
         case 9:
             helper4 = podprogram9(helper4,m1,a1,c1);
