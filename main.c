@@ -23,7 +23,7 @@
 #include <libpic30.h>
 #include <math.h>
 
-uint16_t program = 8;
+uint16_t program = 1;
 uint16_t liczba1 = 0;
 
 uint16_t liczba2 = 255;
